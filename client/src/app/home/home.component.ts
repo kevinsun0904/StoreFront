@@ -1,27 +1,84 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild, viewChild } from '@angular/core';
 import { ProductsService } from '../services/products.service';
 import { Product, Products } from '../../types';
 import { ProductComponent } from '../components/product/product.component';
 import { CommonModule } from '@angular/common';
-import { PaginatorModule } from 'primeng/paginator';
+import { Paginator, PaginatorModule } from 'primeng/paginator';
+import { EditPopupComponent } from '../components/edit-popup/edit-popup.component';
+import { ButtonModule } from 'primeng/button';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [ProductComponent, CommonModule, PaginatorModule],
+  imports: [
+    ProductComponent,
+    CommonModule,
+    PaginatorModule,
+    EditPopupComponent,
+    ButtonModule,
+  ],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
 })
 export class HomeComponent {
   constructor(private productsService: ProductsService) {}
 
+  @ViewChild('paginator') paginator: Paginator | undefined;
+
   products: Product[] = [];
 
   totalRecords: number = 0;
-  rows: number = 5;
+  rows: number = 12;
+
+  displayEditPopup: boolean = false;
+  displayAddPopup: boolean = false;
+
+  selectedProduct: Product = {
+    id: 0,
+    name: '',
+    image: '',
+    price: '',
+    rating: 0,
+  };
+
+  toggleEditPopup(product: Product) {
+    this.selectedProduct = product;
+    this.displayEditPopup = true;
+  }
+
+  toggleAddPopup() {
+    this.displayAddPopup = true;
+  }
+
+  toggleDeletePopup(product: Product) {
+    if (!product.id) {
+      return;
+    }
+
+    this.deleteProduct(product.id);
+  }
+
+  onConfirmEdit(product: Product) {
+    if (!this.selectedProduct.id) {
+      return;
+    }
+
+    this.editProduct(product, this.selectedProduct.id); // can also use ?? to set default value e.g. id ?? 0
+    this.displayEditPopup = false;
+  }
+
+  onConfirmAdd(product: Product) {
+    this.addProduct(product);
+    this.displayAddPopup = false;
+  }
 
   onPageChange(event: any) {
+    this.rows = event.rows;
     this.fetchProducts(event.page, event.rows);
+  }
+
+  resetPaginator() {
+    this.paginator?.changePage(0);
   }
 
   fetchProducts(page: number, perPage: number) {
@@ -36,13 +93,14 @@ export class HomeComponent {
       });
   }
 
-  editProducts(product: Product, id: number) {
+  editProduct(product: Product, id: number) {
     this.productsService
       .editProduct(`http://localhost:3000/clothes/${id}`, product)
       .subscribe({
         next: (data) => {
           console.log(data);
           this.fetchProducts(0, this.rows);
+          this.resetPaginator();
         },
         error: (error) => console.log(error),
       });
@@ -55,18 +113,20 @@ export class HomeComponent {
         next: (data) => {
           console.log(data);
           this.fetchProducts(0, this.rows);
+          this.resetPaginator();
         },
         error: (error) => console.log(error),
       });
   }
 
-  addProduct(product: Product, id: number) {
+  addProduct(product: Product) {
     this.productsService
       .addProduct('http://localhost:3000/clothes', product)
       .subscribe({
         next: (data) => {
           console.log(data);
           this.fetchProducts(0, this.rows);
+          this.resetPaginator();
         },
         error: (error) => console.log(error),
       });
